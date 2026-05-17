@@ -61,7 +61,7 @@ pipeline {
         withSonarQubeEnv('PranavMK') {
           withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
             script {
-              def sonarScannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+              def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
               bat """
               "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
                 -Dsonar.projectKey=nexus-inventory-system ^
