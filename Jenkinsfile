@@ -5,6 +5,7 @@ pipeline {
     DOCKER_CRED = 'dockerhub-pranavmk'
     SONAR_CRED = 'sonar'
     SONAR_HOST = 'http://localhost:9000'
+    BACKEND_BASE_URL = 'https://nexus-inventory-system-production.up.railway.app'
     BACKEND_IMAGE = "${REGISTRY}/nexus-backend:${env.GIT_COMMIT}"
     FRONTEND_IMAGE = "${REGISTRY}/nexus-frontend:${env.GIT_COMMIT}"
     BACKEND_IMAGE_LATEST = "${REGISTRY}/nexus-backend:latest"
@@ -19,33 +20,15 @@ pipeline {
       }
     }
 
-    stage('Start Test Database') {
-      steps {
-        bat '''
-        docker rm -f nexus-ci-mongo 2>nul
-        docker run -d --name nexus-ci-mongo -p 27017:27017 mongo:7
-        '''
-      }
-    }
-
     stage('Install & Test Backend') {
       steps {
         bat '''
         python -m pip install --upgrade pip
         pip install -r Backend/requirements.txt
         pip install pytest
-        powershell -NoProfile -Command "$p = Start-Process -FilePath python -ArgumentList 'Backend/app.py' -RedirectStandardOutput backend.log -RedirectStandardError backend.err.log -PassThru; Set-Content -Path backend.pid -Value $p.Id"
-        powershell -NoProfile -Command "Write-Host 'Waiting for backend to respond on http://127.0.0.1:5000'; $ready=$false; for ($i=0;$i -lt 60; $i++) { try { $r=Invoke-WebRequest -Uri http://127.0.0.1:5000 -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { $ready=$true; break } } catch { Start-Sleep -Seconds 1 } }; if (-not $ready) { Write-Host 'Backend did not start in time, dumping logs'; Get-Content backend.log -ErrorAction SilentlyContinue; Get-Content backend.err.log -ErrorAction SilentlyContinue; exit 1 }"
+        echo Using backend at %BACKEND_BASE_URL%
         python -m pytest -q Backend/test_api.py
         '''
-      }
-      post {
-        always {
-          bat '''
-          powershell -NoProfile -Command "if (Test-Path backend.pid) { Stop-Process -Id (Get-Content backend.pid) -Force -ErrorAction SilentlyContinue; Remove-Item backend.pid -Force -ErrorAction SilentlyContinue }"
-          docker rm -f nexus-ci-mongo 2>nul
-          '''
-        }
       }
     }
 
