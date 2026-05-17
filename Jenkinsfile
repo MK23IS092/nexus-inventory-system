@@ -20,7 +20,10 @@ pipeline {
       steps {
         git branch: 'master', url: 'https://github.com/MK23IS092/nexus-inventory-system.git'
         script {
-          env.IMAGE_TAG = bat(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.IMAGE_TAG = bat(returnStdout: true, script: '''
+          @echo off
+          for /f %%i in ('git rev-parse --short HEAD') do echo %%i
+          ''').trim()
           echo "Using image tag: ${env.IMAGE_TAG}"
         }
       }
@@ -71,20 +74,21 @@ pipeline {
               echo "Resolved Sonar scanner: ${sonarScannerHome}"
               echo "Sonar host URL: ${env.SONAR_HOST_URL}"
 
-              withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SQ_TOKEN')]) {
-                bat """
-                set SONAR_AUTH_TOKEN=
-                set SONAR_TOKEN=
-                set SONAR_LOGIN=
-                "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
-                  -Dsonar.projectKey=nexus-inventory-system ^
-                  -Dsonar.projectName=nexus-inventory-system ^
-                  -Dsonar.host.url=%SONAR_HOST_URL% ^
-                  -Dsonar.token=%SQ_TOKEN% ^
-                  -Dsonar.sources=Backend,frontend-react/src ^
-                  -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
-                """
+              if (!env.SONAR_AUTH_TOKEN || !env.SONAR_AUTH_TOKEN.trim()) {
+                error('SONAR_AUTH_TOKEN was not injected by the SonarQube server configuration. Fix the SonarQube server entry named PranavMK in Jenkins.')
               }
+
+              bat """
+              set SONAR_TOKEN=
+              set SONAR_LOGIN=
+              "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+                -Dsonar.projectKey=nexus-inventory-system ^
+                -Dsonar.projectName=nexus-inventory-system ^
+                -Dsonar.host.url=%SONAR_HOST_URL% ^
+                -Dsonar.token=%SONAR_AUTH_TOKEN% ^
+                -Dsonar.sources=Backend,frontend-react/src ^
+                -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+              """
             }
           }
         }
