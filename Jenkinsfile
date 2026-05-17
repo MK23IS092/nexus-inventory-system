@@ -175,8 +175,8 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: env.VERCEL_CRED, variable: 'VERCEL_TOKEN')]) {
           bat '''
-          if not exist frontend-react\.vercel mkdir frontend-react\.vercel
-          powershell -NoProfile -Command "$json = '{\"projectId\":\"%VERCEL_PROJECT_ID%\",\"orgId\":\"%VERCEL_ORG_ID%\"}'; Set-Content -Path frontend-react\.vercel\\project.json -Value $json -Encoding ASCII"
+          if not exist frontend-react/.vercel mkdir frontend-react/.vercel
+          powershell -NoProfile -Command "$json = '{\"projectId\":\"%VERCEL_PROJECT_ID%\",\"orgId\":\"%VERCEL_ORG_ID%\"}'; Set-Content -Path frontend-react/.vercel/project.json -Value $json -Encoding ASCII"
           npx --yes vercel deploy --cwd frontend-react --prod --yes --token %VERCEL_TOKEN%
           '''
         }
