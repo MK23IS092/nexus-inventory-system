@@ -1,53 +1,73 @@
 pipeline {
   agent any
   environment {
-    REGISTRY = 'docker.io/PranavMK'
-    DOCKER_CRED = 'docker-registry-creds'
+    REGISTRY = 'docker.io/pranavmk'
+    DOCKER_CRED = 'your-docker-pat-here'
     SONAR_CRED = 'sonar'
     SONAR_HOST = 'http://localhost:9000'
     BACKEND_IMAGE = "${REGISTRY}/nexus-backend:${env.GIT_COMMIT}"
     FRONTEND_IMAGE = "${REGISTRY}/nexus-frontend:${env.GIT_COMMIT}"
     BACKEND_IMAGE_LATEST = "${REGISTRY}/nexus-backend:latest"
     FRONTEND_IMAGE_LATEST = "${REGISTRY}/nexus-frontend:latest"
+    MONGO_URI = 'mongodb://127.0.0.1:27017/quickCommerceDB'
+    BACKEND_PID_FILE = 'backend.pid'
   }
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
+        git branch: 'master', url: 'https://github.com/MK23IS092/nexus-inventory-system.git'
+      }
+    }
+
+    stage('Start Test Database') {
+      steps {
+        bat '''
+        docker rm -f nexus-ci-mongo 2>nul
+        docker run -d --name nexus-ci-mongo -p 27017:27017 mongo:7
+        '''
       }
     }
 
     stage('Install & Test Backend') {
       steps {
-        dir('Backend') {
-          sh 'python -m pip install --upgrade pip'
-          sh 'pip install -r requirements.txt'
-          // optional: run tests if present
-          sh 'pytest -q || true'
+        bat '''
+        python -m pip install --upgrade pip
+        pip install -r Backend/requirements.txt
+        pip install pytest
+        powershell -NoProfile -Command "$p = Start-Process -FilePath python -ArgumentList 'Backend/app.py' -PassThru; Set-Content -Path backend.pid -Value $p.Id"
+        timeout /t 10 /nobreak >nul
+        python -m pytest -q Backend/test_api.py
+        '''
+      }
+      post {
+        always {
+          bat '''
+          powershell -NoProfile -Command "if (Test-Path backend.pid) { Stop-Process -Id (Get-Content backend.pid) -Force -ErrorAction SilentlyContinue; Remove-Item backend.pid -Force -ErrorAction SilentlyContinue }"
+          docker rm -f nexus-ci-mongo 2>nul
+          '''
         }
       }
     }
 
     stage('Install & Test Frontend') {
       steps {
-        dir('frontend-react') {
-          sh 'npm ci --silent --legacy-peer-deps'
-          sh 'npm test --silent -- --watchAll=false || true'
-        }
+        bat '''
+        cd frontend-react
+        npm ci --legacy-peer-deps
+        npm test -- --watchAll=false --passWithNoTests
+        npm run build
+        '''
       }
     }
 
     stage('OWASP Dependency Check') {
       steps {
-        // run dependency-check via Docker image and publish report
-        sh '''
-        docker run --rm -v "$PWD":/src -v "$PWD"/owasp-report:/report owasp/dependency-check:latest \
-          --scan /src --format ALL --out /report
-        '''
+        dependencyCheck additionalArguments: '--scan ./ --format ALL --out dependency-check-report', odcInstallation: 'DP'
       }
       post {
         always {
-          archiveArtifacts artifacts: 'owasp-report/**', allowEmptyArchive: true
+          dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
+          archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
         }
       }
     }
@@ -55,35 +75,58 @@ pipeline {
     stage('SonarQube Analysis') {
       steps {
         withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
-          sh "docker run --rm -e SONAR_HOST_URL=${env.SONAR_HOST} -e SONAR_LOGIN=$SONAR_TOKEN -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli"
+          bat '''
+          "%SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
+            -Dsonar.projectKey=nexus-inventory-system ^
+            -Dsonar.projectName=nexus-inventory-system ^
+            -Dsonar.host.url=http://localhost:9000 ^
+            -Dsonar.login=%SONAR_TOKEN% ^
+            -Dsonar.sources=Backend,frontend-react/src ^
+            -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+          '''
         }
       }
     }
 
     stage('Build Docker Images') {
       steps {
-        sh "docker build -t ${BACKEND_IMAGE} -f Backend/Dockerfile Backend"
-        sh "docker build -t ${FRONTEND_IMAGE} -f frontend-react/Dockerfile frontend-react"
-        sh "docker tag ${BACKEND_IMAGE} ${BACKEND_IMAGE_LATEST}"
-        sh "docker tag ${FRONTEND_IMAGE} ${FRONTEND_IMAGE_LATEST}"
+        bat '''
+        docker build -t docker.io/pranavmk/nexus-backend:%GIT_COMMIT% -t docker.io/pranavmk/nexus-backend:latest -f Dockerfile .
+        docker build -t docker.io/pranavmk/nexus-frontend:%GIT_COMMIT% -t docker.io/pranavmk/nexus-frontend:latest -f frontend-react/Dockerfile frontend-react
+        '''
       }
     }
 
     stage('Push Images') {
       steps {
         withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-          sh "docker push ${BACKEND_IMAGE}"
-          sh "docker push ${FRONTEND_IMAGE}"
-          sh "docker push ${BACKEND_IMAGE_LATEST}"
-          sh "docker push ${FRONTEND_IMAGE_LATEST}"
+          bat '''
+          echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+          docker push docker.io/pranavmk/nexus-backend:%GIT_COMMIT%
+          docker push docker.io/pranavmk/nexus-backend:latest
+          docker push docker.io/pranavmk/nexus-frontend:%GIT_COMMIT%
+          docker push docker.io/pranavmk/nexus-frontend:latest
+          '''
         }
       }
     }
 
-    stage('Deploy (optional)') {
+    stage('Deploy Frontend to Vercel') {
       steps {
-        echo 'Add deployment steps here (SSH, Kubernetes, ECS, Vercel API, etc.)'
+        withCredentials([string(credentialsId: 'your-vercel-token-here', variable: 'VERCEL_TOKEN')]) {
+          bat '''
+          cd frontend-react
+          if not exist .vercel mkdir .vercel
+          powershell -NoProfile -Command "$json = '{\"projectId\":\"prj_TE3hanu3sHZ2kHUzCp3T7tUfCyAb\",\"orgId\":\"team_GpO5D543HdVwuCLjif4rqt4W\"}'; Set-Content -Path .vercel\\project.json -Value $json -Encoding ASCII"
+          npx --yes vercel deploy --prod --yes --token %VERCEL_TOKEN%
+          '''
+        }
+      }
+    }
+
+    stage('Backend Deploy Note') {
+      steps {
+        echo 'Backend Docker image pushed to DockerHub. Configure Railway to pull docker.io/pranavmk/nexus-backend:latest or auto-deploy from master.'
       }
     }
   }
