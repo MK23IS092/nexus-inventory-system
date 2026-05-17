@@ -1,8 +1,6 @@
 pipeline {
   agent any
   environment {
-    REGISTRY = 'docker.io/pranavmk'
-    DOCKER_CRED = 'dockerhub-pranavmk'
     SONAR_CRED = 'sonar'
     SONAR_HOST = 'http://localhost:9000'
     BACKEND_BASE_URL = 'https://nexus-inventory-system-production.up.railway.app'
@@ -19,10 +17,6 @@ pipeline {
     stage('Checkout') {
       steps {
         git branch: 'master', url: 'https://github.com/MK23IS092/nexus-inventory-system.git'
-        script {
-          env.IMAGE_TAG = bat(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-          echo "Using image tag: ${env.IMAGE_TAG}"
-        }
       }
     }
 
@@ -87,37 +81,6 @@ pipeline {
               }
             }
           }
-        }
-      }
-    }
-
-    stage('Prepare Docker Engine') {
-      steps {
-        bat '''
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; $services = @('com.docker.service', 'Docker Desktop Service'); foreach ($serviceName in $services) { $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue; if ($svc -and $svc.Status -ne 'Running') { Start-Service -Name $serviceName -ErrorAction SilentlyContinue } }; for ($i = 0; $i -lt 12; $i++) { docker info *> $null; if ($LASTEXITCODE -eq 0) { Write-Host 'Docker daemon is available.'; exit 0 }; Start-Sleep -Seconds 5 }; Write-Error 'Docker daemon is not available on this Jenkins agent.'; exit 1"
-        '''
-      }
-    }
-
-    stage('Build Docker Images') {
-      steps {
-        bat '''
-        docker build -t docker.io/pranavmk/nexus-backend:%IMAGE_TAG% -t docker.io/pranavmk/nexus-backend:latest -f Dockerfile .
-        docker build -t docker.io/pranavmk/nexus-frontend:%IMAGE_TAG% -t docker.io/pranavmk/nexus-frontend:latest -f frontend-react/Dockerfile frontend-react
-        '''
-      }
-    }
-
-    stage('Push Images') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          bat '''
-          echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-          docker push docker.io/pranavmk/nexus-backend:%IMAGE_TAG%
-          docker push docker.io/pranavmk/nexus-backend:latest
-          docker push docker.io/pranavmk/nexus-frontend:%IMAGE_TAG%
-          docker push docker.io/pranavmk/nexus-frontend:latest
-          '''
         }
       }
     }
