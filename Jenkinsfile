@@ -59,23 +59,39 @@ pipeline {
     stage('SonarQube Analysis') {
       steps {
         withSonarQubeEnv('PranavMK') {
-          withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
-            script {
-              // resolve installed scanner
-              def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-              echo "Resolved Sonar scanner: ${sonarScannerHome}"
-              echo "Sonar host URL: ${env.SONAR_HOST_URL}"
-              // Clear SONAR_AUTH_TOKEN injected by withSonarQubeEnv to avoid sonar.token vs sonar.login conflict
+          script {
+            // resolve installed scanner
+            def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+            echo "Resolved Sonar scanner: ${sonarScannerHome}"
+            echo "Sonar host URL: ${env.SONAR_HOST_URL}"
+
+            // If Sonar injected an auth token (SONAR_AUTH_TOKEN), use it. Otherwise use the Jenkins 'sonar' credential.
+            if (env.SONAR_AUTH_TOKEN && env.SONAR_AUTH_TOKEN.trim()) {
+              echo 'Using SONAR_AUTH_TOKEN injected by SonarQube server configuration.'
               bat """
-              set SONAR_AUTH_TOKEN=
+              set SONAR_TOKEN=
               "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
                 -Dsonar.projectKey=nexus-inventory-system ^
                 -Dsonar.projectName=nexus-inventory-system ^
                 -Dsonar.host.url=%SONAR_HOST_URL% ^
-                -Dsonar.login=%SONAR_TOKEN% ^
+                -Dsonar.login=%SONAR_AUTH_TOKEN% ^
                 -Dsonar.sources=Backend,frontend-react/src ^
                 -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
               """
+            } else {
+              echo 'SONAR_AUTH_TOKEN not present; falling back to Jenkins credential id in variable SONAR_CRED.'
+              withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
+                bat """
+                set SONAR_AUTH_TOKEN=
+                "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+                  -Dsonar.projectKey=nexus-inventory-system ^
+                  -Dsonar.projectName=nexus-inventory-system ^
+                  -Dsonar.host.url=%SONAR_HOST_URL% ^
+                  -Dsonar.login=%SONAR_TOKEN% ^
+                  -Dsonar.sources=Backend,frontend-react/src ^
+                  -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+                """
+              }
             }
           }
         }
@@ -93,7 +109,7 @@ pipeline {
 
     stage('Push Images') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'pranavmk', passwordVariable: 'Pmk190705*')]) {
           bat '''
           echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
           docker push docker.io/pranavmk/nexus-backend:%GIT_COMMIT%
