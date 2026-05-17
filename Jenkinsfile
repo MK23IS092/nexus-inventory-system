@@ -35,7 +35,7 @@ pipeline {
         pip install -r Backend/requirements.txt
         pip install pytest
         powershell -NoProfile -Command "$p = Start-Process -FilePath python -ArgumentList 'Backend/app.py' -PassThru; Set-Content -Path backend.pid -Value $p.Id"
-        timeout /t 10 /nobreak >nul
+        powershell -NoProfile -Command "Start-Sleep -Seconds 10"
         python -m pytest -q Backend/test_api.py
         '''
       }
