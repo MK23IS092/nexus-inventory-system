@@ -1,0 +1,12 @@
+.git
+.github
+frontend-react/node_modules
+frontend-react/build
+Backend/__pycache__
+Backend/*.pyc
+Backend/.env
+infra
+README.md
+docker-compose.yml
+Jenkinsfile
+sonar-project.properties

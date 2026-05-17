@@ -78,3 +78,15 @@ If you do not have the MongoDB service running as a Windows Service, you can run
 
 - **MongoDB Connection Error:** Ensure `mongod` is running and listening on port `27017`. Check `Backend/.env` to ensure `MONGO_URI=mongodb://127.0.0.1:27017/`.
 - **Frontend API Errors:** Ensure the backend is running on port `5000`.
+
+## Deployment Notes
+
+- **Backend on Railway:** deploy from the repository root using the root-level `Dockerfile`. This avoids Railpack guessing the app type in this monorepo.
+- **Frontend on Vercel:** point Vercel at `frontend-react/` and build with `npm run build`.
+- **Database:** use MongoDB Atlas or your hosted MongoDB endpoint and set `MONGO_URI` in the backend environment.
+
+### Railway environment variables
+
+- `MONGO_URI`: your hosted MongoDB connection string.
+- `SECRET_KEY`: a strong random secret for Flask.
+- `PORT`: Railway sets this automatically, and the root `Dockerfile` already binds to it.

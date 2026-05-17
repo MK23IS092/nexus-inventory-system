@@ -46,7 +46,7 @@ def get_all_tables():
 def create_routes(name, key_field):
     # Add document
     @app.route(f'/add-{name}', methods=['POST'], endpoint=f'add_{name}')
-    def add_{name}():
+    def add():
         data = request.get_json() or {}
         if not data.get(key_field):
             return jsonify({"error": f"{key_field} is required"}), 400
@@ -55,13 +55,13 @@ def create_routes(name, key_field):
 
     # Get all documents
     @app.route(f'/get-{name}', methods=['GET'], endpoint=f'get_all_{name}')
-    def get_all_{name}():
+    def get_all():
         items = list(db[name].find({}, {'_id': 0}))
         return jsonify(items)
 
     # Update by key
     @app.route(f'/update-{name}/<key_value>', methods=['PUT'], endpoint=f'update_{name}')
-    def update_{name}(key_value):
+    def update(key_value):
         data = request.get_json() or {}
         try:
             parsed_key = int(key_value)
@@ -75,7 +75,7 @@ def create_routes(name, key_field):
 
     # Delete by key
     @app.route(f'/delete-{name}/<key_value>', methods=['DELETE'], endpoint=f'delete_{name}')
-    def delete_{name}(key_value):
+    def delete(key_value):
         try:
             parsed_key = int(key_value)
         except ValueError:
