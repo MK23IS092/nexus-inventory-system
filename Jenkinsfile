@@ -13,16 +13,16 @@ pipeline {
     VERCEL_CRED = 'vercel-token'
     VERCEL_PROJECT_ID = 'prj_TE3hanu3sHZ2kHUzCp3T7tUfCyAb'
     VERCEL_ORG_ID = 'team_GpO5D543HdVwuCLjif4rqt4W'
-    BACKEND_IMAGE = "${REGISTRY}/nexus-backend:${env.GIT_COMMIT}"
-    FRONTEND_IMAGE = "${REGISTRY}/nexus-frontend:${env.GIT_COMMIT}"
-    BACKEND_IMAGE_LATEST = "${REGISTRY}/nexus-backend:latest"
-    FRONTEND_IMAGE_LATEST = "${REGISTRY}/nexus-frontend:latest"
     MONGO_URI = 'mongodb://127.0.0.1:27017/quickCommerceDB'
   }
   stages {
     stage('Checkout') {
       steps {
         git branch: 'master', url: 'https://github.com/MK23IS092/nexus-inventory-system.git'
+        script {
+          env.IMAGE_TAG = bat(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          echo "Using image tag: ${env.IMAGE_TAG}"
+        }
       }
     }
 
@@ -71,14 +71,16 @@ pipeline {
               echo "Resolved Sonar scanner: ${sonarScannerHome}"
               echo "Sonar host URL: ${env.SONAR_HOST_URL}"
 
-              withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
+              withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SQ_TOKEN')]) {
                 bat """
                 set SONAR_AUTH_TOKEN=
+                set SONAR_TOKEN=
+                set SONAR_LOGIN=
                 "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
                   -Dsonar.projectKey=nexus-inventory-system ^
                   -Dsonar.projectName=nexus-inventory-system ^
                   -Dsonar.host.url=%SONAR_HOST_URL% ^
-                  -Dsonar.token=%SONAR_TOKEN% ^
+                  -Dsonar.token=%SQ_TOKEN% ^
                   -Dsonar.sources=Backend,frontend-react/src ^
                   -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
                 """
@@ -89,11 +91,19 @@ pipeline {
       }
     }
 
+    stage('Prepare Docker Engine') {
+      steps {
+        bat '''
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; $services = @('com.docker.service', 'Docker Desktop Service'); foreach ($serviceName in $services) { $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue; if ($svc -and $svc.Status -ne 'Running') { Start-Service -Name $serviceName -ErrorAction SilentlyContinue } }; for ($i = 0; $i -lt 12; $i++) { docker info *> $null; if ($LASTEXITCODE -eq 0) { Write-Host 'Docker daemon is available.'; exit 0 }; Start-Sleep -Seconds 5 }; Write-Error 'Docker daemon is not available on this Jenkins agent.'; exit 1"
+        '''
+      }
+    }
+
     stage('Build Docker Images') {
       steps {
         bat '''
-        docker build -t docker.io/pranavmk/nexus-backend:%GIT_COMMIT% -t docker.io/pranavmk/nexus-backend:latest -f Dockerfile .
-        docker build -t docker.io/pranavmk/nexus-frontend:%GIT_COMMIT% -t docker.io/pranavmk/nexus-frontend:latest -f frontend-react/Dockerfile frontend-react
+        docker build -t docker.io/pranavmk/nexus-backend:%IMAGE_TAG% -t docker.io/pranavmk/nexus-backend:latest -f Dockerfile .
+        docker build -t docker.io/pranavmk/nexus-frontend:%IMAGE_TAG% -t docker.io/pranavmk/nexus-frontend:latest -f frontend-react/Dockerfile frontend-react
         '''
       }
     }
@@ -103,9 +113,9 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           bat '''
           echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-          docker push docker.io/pranavmk/nexus-backend:%GIT_COMMIT%
+          docker push docker.io/pranavmk/nexus-backend:%IMAGE_TAG%
           docker push docker.io/pranavmk/nexus-backend:latest
-          docker push docker.io/pranavmk/nexus-frontend:%GIT_COMMIT%
+          docker push docker.io/pranavmk/nexus-frontend:%IMAGE_TAG%
           docker push docker.io/pranavmk/nexus-frontend:latest
           '''
         }
