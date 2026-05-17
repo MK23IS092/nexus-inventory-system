@@ -2,7 +2,7 @@ pipeline {
   agent any
   environment {
     REGISTRY = 'docker.io/pranavmk'
-    DOCKER_CRED = 'your-docker-pat-here'
+    DOCKER_CRED = 'dockerhub-pranavmk'
     SONAR_CRED = 'sonar'
     SONAR_HOST = 'http://localhost:9000'
     BACKEND_IMAGE = "${REGISTRY}/nexus-backend:${env.GIT_COMMIT}"
@@ -113,7 +113,7 @@ pipeline {
 
     stage('Deploy Frontend to Vercel') {
       steps {
-        withCredentials([string(credentialsId: 'your-vercel-token-here', variable: 'VERCEL_TOKEN')]) {
+        withCredentials([string(credentialsId: 'vercel-token', variable: 'VERCEL_TOKEN')]) {
           bat '''
           cd frontend-react
           if not exist .vercel mkdir .vercel
