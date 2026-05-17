@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TABLES } from '../../constants';
+import PropTypes from 'prop-types';
 
 const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
     const [selectedTable, setSelectedTable] = useState('');
@@ -8,7 +9,7 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setRows(Array(rowCount).fill({}));
+            setRows(new Array(Number.parseInt(rowCount) || 1).fill({}));
         } else {
             setSelectedTable('');
             setRowCount(1);
@@ -17,7 +18,7 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
     }, [isOpen]);
 
     useEffect(() => {
-        setRows(Array(parseInt(rowCount) || 1).fill({}));
+        setRows(new Array(Number.parseInt(rowCount) || 1).fill({}));
     }, [rowCount]);
 
     const handleInputChange = (rowIndex, field, value) => {
@@ -72,7 +73,7 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
 
                     <div id="rowsContainer" className="rows-container">
                         {selectedTable && rows.map((_, index) => (
-                            <div key={index} className="row-group">
+                            <div key={`${selectedTable}-${index}`} className="row-group">
                                 <div className="row-header">
                                     <div className="row-title">Row {index + 1}</div>
                                 </div>
@@ -115,3 +116,14 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 export default AddItemModal;
+
+AddItemModal.propTypes = {
+    isOpen: PropTypes.bool,
+    onClose: PropTypes.func,
+    onConfirm: PropTypes.func.isRequired,
+};
+
+AddItemModal.defaultProps = {
+    isOpen: false,
+    onClose: () => {},
+};

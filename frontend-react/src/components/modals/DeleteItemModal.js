@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TABLES } from '../../constants';
+import PropTypes from 'prop-types';
 
 const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
     const [selectedTable, setSelectedTable] = useState('');
@@ -8,7 +9,7 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setIds(Array(rowCount).fill(''));
+            setIds(new Array(Number.parseInt(rowCount) || 1).fill(''));
         } else {
             setSelectedTable('');
             setRowCount(1);
@@ -18,7 +19,7 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
 
     useEffect(() => {
         setIds(prev => {
-            const newCount = parseInt(rowCount) || 1;
+            const newCount = Number.parseInt(rowCount) || 1;
             const newIds = [...prev];
             if (newCount > prev.length) {
                 for (let i = prev.length; i < newCount; i++) {
@@ -84,7 +85,7 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
 
                     <div id="deleteRowsContainer" className="rows-container">
                         {selectedTable && primaryKey && ids.map((id, index) => (
-                            <div key={index} className="row-group">
+                            <div key={`${selectedTable}-${index}`} className="row-group">
                                 <div className="form-group">
                                     <label>{primaryKey.name.toUpperCase()} TO DELETE</label>
                                     <input
@@ -109,3 +110,14 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 export default DeleteItemModal;
+
+DeleteItemModal.propTypes = {
+    isOpen: PropTypes.bool,
+    onClose: PropTypes.func,
+    onConfirm: PropTypes.func.isRequired,
+};
+
+DeleteItemModal.defaultProps = {
+    isOpen: false,
+    onClose: () => {},
+};

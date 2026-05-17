@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const ControlPanel = ({ onAction }) => {
     return (
@@ -25,3 +26,7 @@ const ControlPanel = ({ onAction }) => {
 };
 
 export default ControlPanel;
+
+ControlPanel.propTypes = {
+    onAction: PropTypes.func.isRequired,
+};

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 const DataPanel = ({ refreshTrigger }) => {
     const [tables, setTables] = useState([]);
@@ -47,6 +48,18 @@ const DataPanel = ({ refreshTrigger }) => {
         }
     };
 
+    const getRowKey = (row, index) => {
+        if (!row || typeof row !== 'object') return `row-${index}`;
+        const keys = Object.keys(row);
+        const idKey = keys.find(k => k === 'id' || k.endsWith('_id'));
+        if (idKey && row[idKey] !== undefined) return `${idKey}-${row[idKey]}`;
+        try {
+            return JSON.stringify(row);
+        } catch (e) {
+            return `row-${index}`;
+        }
+    };
+
     return (
         <div className="data-panel">
             <div className="panel-header">
@@ -67,7 +80,7 @@ const DataPanel = ({ refreshTrigger }) => {
             </div>
             <div className="table-wrapper">
                 <div id="table-container" className="table-container">
-                    {loading ? (
+                        {loading ? (
                         <div className="placeholder-content">
                             <div className="loading-spinner"></div>
                         </div>
@@ -81,13 +94,16 @@ const DataPanel = ({ refreshTrigger }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {tableData.map((row, index) => (
-                                    <tr key={index}>
-                                        {Object.values(row).map((val, i) => (
-                                            <td key={i}>{val}</td>
-                                        ))}
-                                    </tr>
-                                ))}
+                                {tableData.map((row, index) => {
+                                    const rowKey = getRowKey(row, index);
+                                    return (
+                                        <tr key={rowKey}>
+                                            {Object.values(row).map((val, i) => (
+                                                <td key={`${rowKey}-${i}`}>{val}</td>
+                                            ))}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     ) : (
@@ -112,3 +128,7 @@ const DataPanel = ({ refreshTrigger }) => {
 };
 
 export default DataPanel;
+
+DataPanel.propTypes = {
+    refreshTrigger: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.bool])
+};

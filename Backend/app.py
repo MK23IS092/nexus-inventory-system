@@ -6,15 +6,17 @@ import os
 
 load_dotenv()  # Load environment variables from .env
 
+from config import MONGO_URI, SECRET_KEY
+
 app = Flask(__name__)
+app.config.setdefault("SECRET_KEY", SECRET_KEY)
 CORS(app)
 
 # MongoDB connection
-mongo_uri = os.getenv("MONGO_URI")
-client = MongoClient(mongo_uri)
-db = client["quickCommerceDB"]
+client = MongoClient(MONGO_URI)
+db = client.get_database() if MONGO_URI else client["quickCommerceDB"]
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
     return jsonify({"message": "Welcome to QuickCommerce API!"})
 
@@ -44,8 +46,8 @@ def get_all_tables():
 def create_routes(name, key_field):
     # Add document
     @app.route(f'/add-{name}', methods=['POST'], endpoint=f'add_{name}')
-    def add():
-        data = request.get_json()
+    def add_{name}():
+        data = request.get_json() or {}
         if not data.get(key_field):
             return jsonify({"error": f"{key_field} is required"}), 400
         db[name].insert_one(data)
@@ -53,32 +55,32 @@ def create_routes(name, key_field):
 
     # Get all documents
     @app.route(f'/get-{name}', methods=['GET'], endpoint=f'get_all_{name}')
-    def get_all():
+    def get_all_{name}():
         items = list(db[name].find({}, {'_id': 0}))
         return jsonify(items)
 
     # Update by key
-    @app.route(f'/update-{name}/<id>', methods=['PUT'], endpoint=f'update_{name}')
-    def update(id):
-        data = request.get_json()
+    @app.route(f'/update-{name}/<key_value>', methods=['PUT'], endpoint=f'update_{name}')
+    def update_{name}(key_value):
+        data = request.get_json() or {}
         try:
-            id = int(id)
+            parsed_key = int(key_value)
         except ValueError:
-            pass
-        result = db[name].update_one({key_field: id}, {'$set': data})
+            parsed_key = key_value
+        result = db[name].update_one({key_field: parsed_key}, {'$set': data})
         if result.matched_count == 0:
             return jsonify({"error": f"{name} not found"}), 404
         return jsonify({"message": f"{name} updated successfully!"})
     
 
     # Delete by key
-    @app.route(f'/delete-{name}/<id>', methods=['DELETE'], endpoint=f'delete_{name}')
-    def delete(id):
+    @app.route(f'/delete-{name}/<key_value>', methods=['DELETE'], endpoint=f'delete_{name}')
+    def delete_{name}(key_value):
         try:
-            id = int(id)
+            parsed_key = int(key_value)
         except ValueError:
-            pass
-        result = db[name].delete_one({key_field: id})
+            parsed_key = key_value
+        result = db[name].delete_one({key_field: parsed_key})
         if result.deleted_count == 0:
             return jsonify({"error": f"{name} not found"}), 404
         return jsonify({"message": f"{name} deleted successfully!"})

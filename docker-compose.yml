@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build:
+      context: ./Backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/quickCommerceDB
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./frontend-react
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

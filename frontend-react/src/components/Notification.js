@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 const Notification = ({ message, type, onClose }) => {
     useEffect(() => {
@@ -19,3 +20,15 @@ const Notification = ({ message, type, onClose }) => {
 };
 
 export default Notification;
+
+Notification.propTypes = {
+    message: PropTypes.string,
+    type: PropTypes.oneOf(['success', 'error', 'info']),
+    onClose: PropTypes.func,
+};
+
+Notification.defaultProps = {
+    message: '',
+    type: 'info',
+    onClose: () => {},
+};

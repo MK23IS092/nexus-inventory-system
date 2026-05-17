@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TABLES } from '../../constants';
+import PropTypes from 'prop-types';
 
 const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
     const [rowCount, setRowCount] = useState(1);
@@ -7,7 +8,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
 
     useEffect(() => {
         if (isOpen) {
-            setRows(Array(rowCount).fill({ table: '', id: '', attributes: {} }));
+            setRows(new Array(Number.parseInt(rowCount) || 1).fill({ table: '', id: '', attributes: {} }));
         } else {
             setRowCount(1);
             setRows([]);
@@ -17,7 +18,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
     useEffect(() => {
         // Adjust rows array size while preserving existing data
         setRows(prev => {
-            const newCount = parseInt(rowCount) || 1;
+            const newCount = Number.parseInt(rowCount) || 1;
             const newRows = [...prev];
             if (newCount > prev.length) {
                 for (let i = prev.length; i < newCount; i++) {
@@ -99,7 +100,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
 
                     <div id="modifyRowsContainer" className="rows-container">
                         {rows.map((row, index) => (
-                            <div key={index} className="row-group">
+                            <div key={`modify-${row.table || 'row'}-${index}`} className="row-group">
                                 <div className="row-header">
                                     <div className="row-title">Row {index + 1}</div>
                                     <button className="remove-row" onClick={() => handleRemoveRow(index)}>×</button>
@@ -174,3 +175,14 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 export default ModifyItemModal;
+
+ModifyItemModal.propTypes = {
+    isOpen: PropTypes.bool,
+    onClose: PropTypes.func,
+    onConfirm: PropTypes.func.isRequired,
+};
+
+ModifyItemModal.defaultProps = {
+    isOpen: false,
+    onClose: () => {},
+};
