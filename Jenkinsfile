@@ -157,14 +157,16 @@ pipeline {
 
     stage('Push Images') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          bat '''
-          echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-          docker push docker.io/pranavmk/nexus-backend:%IMAGE_TAG%
-          docker push docker.io/pranavmk/nexus-backend:latest
-          docker push docker.io/pranavmk/nexus-frontend:%IMAGE_TAG%
-          docker push docker.io/pranavmk/nexus-frontend:latest
-          '''
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            bat '''
+            echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+            docker push docker.io/pranavmk/nexus-backend:%IMAGE_TAG%
+            docker push docker.io/pranavmk/nexus-backend:latest
+            docker push docker.io/pranavmk/nexus-frontend:%IMAGE_TAG%
+            docker push docker.io/pranavmk/nexus-frontend:latest
+            '''
+          }
         }
       }
     }
