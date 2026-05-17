@@ -79,8 +79,6 @@ pipeline {
               }
 
               bat """
-              set SONAR_TOKEN=
-              set SONAR_LOGIN=
               "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
                 -Dsonar.projectKey=nexus-inventory-system ^
                 -Dsonar.projectName=nexus-inventory-system ^
@@ -97,9 +95,54 @@ pipeline {
 
     stage('Prepare Docker Engine') {
       steps {
-        bat '''
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; $desktopExe = \"${env:ProgramFiles}\\Docker\\Docker\\Docker Desktop.exe\"; $services = @('com.docker.service', 'Docker Desktop Service'); foreach ($serviceName in $services) { $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue; if ($svc -and $svc.Status -ne 'Running') { try { Start-Service -Name $serviceName -ErrorAction Stop } catch { Write-Host \"Unable to start service $serviceName: $($_.Exception.Message)\" } } }; if (Test-Path $desktopExe) { $desktop = Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue; if (-not $desktop) { try { Start-Process -FilePath $desktopExe -ArgumentList '--minimized' } catch { Write-Host \"Unable to start Docker Desktop: $($_.Exception.Message)\" } } } else { Write-Host \"Docker Desktop not found at $desktopExe\" }; for ($i = 0; $i -lt 36; $i++) { docker info *> $null; if ($LASTEXITCODE -eq 0) { Write-Host 'Docker daemon is available.'; exit 0 }; Start-Sleep -Seconds 5 }; Write-Error 'Docker daemon is not available on this Jenkins agent. Start Docker Desktop or install the Docker service on the Windows agent.'; exit 1"
-        '''
+      writeFile file: 'start-docker.ps1', text: '''
+  $ErrorActionPreference = "Stop"
+
+  $desktopExe = Join-Path $env:ProgramFiles "Docker\\Docker\\Docker Desktop.exe"
+  $services = @("com.docker.service", "Docker Desktop Service")
+
+  foreach ($serviceName in $services) {
+    $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -ne "Running") {
+      try {
+        Start-Service -Name $serviceName -ErrorAction Stop
+        Write-Host "Started service: $serviceName"
+      } catch {
+        Write-Host "Unable to start service ${serviceName}: $($_.Exception.Message)"
+      }
+    }
+  }
+
+  if (Test-Path $desktopExe) {
+    $desktop = Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue
+    if (-not $desktop) {
+      try {
+        Start-Process -FilePath $desktopExe -ArgumentList "--minimized"
+        Write-Host "Docker Desktop launched."
+      } catch {
+        Write-Host "Unable to start Docker Desktop: $($_.Exception.Message)"
+      }
+    } else {
+      Write-Host "Docker Desktop already running."
+    }
+  } else {
+    Write-Host "Docker Desktop not found at $desktopExe"
+  }
+
+  for ($i = 0; $i -lt 36; $i++) {
+    docker info 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      Write-Host "Docker daemon is available."
+      exit 0
+    }
+    Write-Host "Waiting for Docker daemon... attempt $($i + 1)/36"
+    Start-Sleep -Seconds 5
+  }
+
+  Write-Error "Docker daemon is not available after 3 minutes. Start Docker Desktop manually."
+  exit 1
+  '''
+      bat 'powershell -NoProfile -ExecutionPolicy Bypass -File start-docker.ps1'
       }
     }
 
