@@ -4,10 +4,9 @@ pipeline {
     REGISTRY = 'docker.io/pranavmk'
     DOCKER_CRED = 'dockerhub-pranavmk'
     SONAR_CRED = 'sonar'
-    RAILWAY_CRED = 'RAILWAY_TOKEN'
+    RAILWAY_CRED = 'railway-token'
     SONAR_HOST = 'http://localhost:9000'
     BACKEND_BASE_URL = 'https://nexus-inventory-system-production.up.railway.app'
-    RAILWAY_TOKEN = '94c309cc-5a6e-46f1-8644-b4b07fca314a'
     RAILWAY_PROJECT = 'nexus-inventory-system'
     RAILWAY_SERVICE = 'backend'
     RAILWAY_ENVIRONMENT = 'production'
@@ -74,20 +73,19 @@ pipeline {
             echo "Resolved Sonar scanner: ${sonarScannerHome}"
             echo "Sonar host URL: ${env.SONAR_HOST_URL}"
 
-            def sonarStatus = 1
-            if (env.SONAR_AUTH_TOKEN && env.SONAR_AUTH_TOKEN.trim()) {
-              sonarStatus = bat(returnStatus: true, script: """
-              "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
-                -Dsonar.projectKey=nexus-inventory-system ^
-                -Dsonar.projectName=nexus-inventory-system ^
-                -Dsonar.host.url=%SONAR_HOST_URL% ^
-                -Dsonar.token=%SONAR_AUTH_TOKEN% ^
-                -Dsonar.sources=Backend,frontend-react/src ^
-                -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
-              """)
-            } else {
-              echo 'SONAR_AUTH_TOKEN was not injected by the SonarQube server configuration.'
+            if (!env.SONAR_AUTH_TOKEN || !env.SONAR_AUTH_TOKEN.trim()) {
+              echo 'SONAR_AUTH_TOKEN was not injected by the SonarQube server configuration. Trying Jenkins credential fallback.'
             }
+
+            def sonarStatus = bat(returnStatus: true, script: """
+            "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+              -Dsonar.projectKey=nexus-inventory-system ^
+              -Dsonar.projectName=nexus-inventory-system ^
+              -Dsonar.host.url=%SONAR_HOST_URL% ^
+              -Dsonar.token=%SONAR_AUTH_TOKEN% ^
+              -Dsonar.sources=Backend,frontend-react/src ^
+              -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+            """)
 
             if (sonarStatus != 0) {
               echo 'Sonar scan with injected token failed; trying Jenkins credential fallback.'
@@ -228,21 +226,12 @@ pipeline {
       steps {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           script {
-            def railwayStatus = bat(returnStatus: true, script: '''
-            set RAILWAY_TOKEN=%RAILWAY_TOKEN%
-            npx --yes @railway/cli whoami
-            npx --yes @railway/cli up -p %RAILWAY_PROJECT% -e %RAILWAY_ENVIRONMENT% -s %RAILWAY_SERVICE% -d -c
-            ''')
-
-            if (railwayStatus != 0) {
-              echo 'Railway deploy with inline token failed; trying Jenkins credential fallback.'
-              withCredentials([string(credentialsId: env.RAILWAY_CRED, variable: 'RAILWAY_TOKEN_FALLBACK')]) {
-                railwayStatus = bat(returnStatus: true, script: '''
-                set RAILWAY_TOKEN=%RAILWAY_TOKEN_FALLBACK%
-                npx --yes @railway/cli whoami
-                npx --yes @railway/cli up -p %RAILWAY_PROJECT% -e %RAILWAY_ENVIRONMENT% -s %RAILWAY_SERVICE% -d -c
-                ''')
-              }
+            def railwayStatus = 1
+            withCredentials([string(credentialsId: env.RAILWAY_CRED, variable: 'RAILWAY_TOKEN')]) {
+              railwayStatus = bat(returnStatus: true, script: '''
+              npx --yes @railway/cli whoami
+              npx --yes @railway/cli up -p %RAILWAY_PROJECT% -e %RAILWAY_ENVIRONMENT% -s %RAILWAY_SERVICE% -d -c
+              ''')
             }
 
             if (railwayStatus != 0) {
