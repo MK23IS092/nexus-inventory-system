@@ -45,6 +45,7 @@ pipeline {
 
     stage('OWASP Dependency Check') {
       steps {
+        bat 'if not exist dependency-check-report mkdir dependency-check-report'
         dependencyCheck additionalArguments: '--scan ./ --format ALL --out dependency-check-report', odcInstallation: 'DP'
       }
       post {
@@ -57,16 +58,21 @@ pipeline {
 
     stage('SonarQube Analysis') {
       steps {
-        withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
-          bat '''
-          "%SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
-            -Dsonar.projectKey=nexus-inventory-system ^
-            -Dsonar.projectName=nexus-inventory-system ^
-            -Dsonar.host.url=http://localhost:9000 ^
-            -Dsonar.login=%SONAR_TOKEN% ^
-            -Dsonar.sources=Backend,frontend-react/src ^
-            -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
-          '''
+        withSonarQubeEnv('PranavMK') {
+          withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
+            script {
+              def sonarScannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+              bat """
+              "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+                -Dsonar.projectKey=nexus-inventory-system ^
+                -Dsonar.projectName=nexus-inventory-system ^
+                -Dsonar.host.url=%SONAR_HOST_URL% ^
+                -Dsonar.login=%SONAR_TOKEN% ^
+                -Dsonar.sources=Backend,frontend-react/src ^
+                -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+              """
+            }
+          }
         }
       }
     }
