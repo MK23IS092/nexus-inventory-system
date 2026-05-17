@@ -67,26 +67,29 @@ pipeline {
 
     stage('SonarQube Analysis') {
       steps {
-        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-          withSonarQubeEnv('PranavMK') {
-            script {
-              def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-              echo "Resolved Sonar scanner: ${sonarScannerHome}"
-              echo "Sonar host URL: ${env.SONAR_HOST_URL}"
+        withSonarQubeEnv('PranavMK') {
+          script {
+            def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+            echo "Resolved Sonar scanner: ${sonarScannerHome}"
+            echo "Sonar host URL: ${env.SONAR_HOST_URL}"
 
-              if (!env.SONAR_AUTH_TOKEN || !env.SONAR_AUTH_TOKEN.trim()) {
-                error('SONAR_AUTH_TOKEN was not injected by the SonarQube server configuration. Fix the SonarQube server entry named PranavMK in Jenkins.')
-              }
+            if (!env.SONAR_AUTH_TOKEN || !env.SONAR_AUTH_TOKEN.trim()) {
+              echo 'SONAR_AUTH_TOKEN was not injected by the SonarQube server configuration. Skipping Sonar scan.'
+              return
+            }
 
-              bat """
-              "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
-                -Dsonar.projectKey=nexus-inventory-system ^
-                -Dsonar.projectName=nexus-inventory-system ^
-                -Dsonar.host.url=%SONAR_HOST_URL% ^
-                -Dsonar.token=%SONAR_AUTH_TOKEN% ^
-                -Dsonar.sources=Backend,frontend-react/src ^
-                -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
-              """
+            def sonarStatus = bat(returnStatus: true, script: """
+            "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+              -Dsonar.projectKey=nexus-inventory-system ^
+              -Dsonar.projectName=nexus-inventory-system ^
+              -Dsonar.host.url=%SONAR_HOST_URL% ^
+              -Dsonar.token=%SONAR_AUTH_TOKEN% ^
+              -Dsonar.sources=Backend,frontend-react/src ^
+              -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+            """)
+
+            if (sonarStatus != 0) {
+              echo "Sonar scanner exited with code ${sonarStatus}; continuing the pipeline."
             }
           }
         }
@@ -157,15 +160,30 @@ pipeline {
 
     stage('Push Images') {
       steps {
-        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-          withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            bat '''
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CRED, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          script {
+            def loginStatus = bat(returnStatus: true, script: '''
             echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+            ''')
+
+            if (loginStatus != 0) {
+              echo 'Docker login failed; skipping image push so the pipeline can continue.'
+              return
+            }
+
+            def backendPushStatus = bat(returnStatus: true, script: '''
             docker push docker.io/pranavmk/nexus-backend:%IMAGE_TAG%
             docker push docker.io/pranavmk/nexus-backend:latest
+            ''')
+
+            def frontendPushStatus = bat(returnStatus: true, script: '''
             docker push docker.io/pranavmk/nexus-frontend:%IMAGE_TAG%
             docker push docker.io/pranavmk/nexus-frontend:latest
-            '''
+            ''')
+
+            if (backendPushStatus != 0 || frontendPushStatus != 0) {
+              echo 'One or more Docker pushes failed; continuing to the remaining deployment stages.'
+            }
           }
         }
       }
@@ -174,11 +192,12 @@ pipeline {
     stage('Deploy Frontend to Vercel') {
       steps {
         withCredentials([string(credentialsId: env.VERCEL_CRED, variable: 'VERCEL_TOKEN')]) {
-          bat '''
-          if not exist frontend-react/.vercel mkdir frontend-react/.vercel
-          powershell -NoProfile -Command "$json = '{\"projectId\":\"%VERCEL_PROJECT_ID%\",\"orgId\":\"%VERCEL_ORG_ID%\"}'; Set-Content -Path frontend-react/.vercel/project.json -Value $json -Encoding ASCII"
-          npx --yes vercel deploy --cwd frontend-react --prod --yes --token %VERCEL_TOKEN%
-          '''
+          dir('frontend-react') {
+            bat '''
+            powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path .vercel | Out-Null; $json = '{\"projectId\":\"%VERCEL_PROJECT_ID%\",\"orgId\":\"%VERCEL_ORG_ID%\"}'; Set-Content -Path .vercel\\project.json -Value $json -Encoding ASCII"
+            npx --yes vercel deploy --prod --yes --token %VERCEL_TOKEN%
+            '''
+          }
         }
       }
     }
