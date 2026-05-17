@@ -1,12 +1,13 @@
 import time
 import uuid
+import os
 from types import SimpleNamespace
 
 import pytest
 import requests
 
 
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:5000")
 COLLECTIONS = [
     ("Products", "product_id"),
     ("DarkStores", "store_id"),
