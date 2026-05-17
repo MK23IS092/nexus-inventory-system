@@ -154,4 +154,14 @@ create_routes("OrderItems", "order_item_id")
 # -------------------- Run the App --------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    import sys
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', os.getenv('FLASK_RUN_PORT', '5000')))
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('1', 'true', 'yes')
+
+    try:
+        app.run(host=host, port=port, debug=debug)
+    except Exception as e:
+        # Print error to stderr so CI logs capture it
+        print("Backend failed to start:", e, file=sys.stderr)
+        raise

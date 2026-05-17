@@ -34,8 +34,8 @@ pipeline {
         python -m pip install --upgrade pip
         pip install -r Backend/requirements.txt
         pip install pytest
-        powershell -NoProfile -Command "$p = Start-Process -FilePath python -ArgumentList 'Backend/app.py' -PassThru; Set-Content -Path backend.pid -Value $p.Id"
-        powershell -NoProfile -Command "Start-Sleep -Seconds 10"
+        powershell -NoProfile -Command "$p = Start-Process -FilePath python -ArgumentList 'Backend/app.py' -RedirectStandardOutput backend.log -RedirectStandardError backend.err.log -PassThru; Set-Content -Path backend.pid -Value $p.Id"
+        powershell -NoProfile -Command "Write-Host 'Waiting for backend to respond on http://127.0.0.1:5000'; $ready=$false; for ($i=0;$i -lt 60; $i++) { try { $r=Invoke-WebRequest -Uri http://127.0.0.1:5000 -UseBasicParsing -TimeoutSec 5; if ($r.StatusCode -eq 200) { $ready=$true; break } } catch { Start-Sleep -Seconds 1 } }; if (-not $ready) { Write-Host 'Backend did not start in time, dumping logs'; Get-Content backend.log -ErrorAction SilentlyContinue; Get-Content backend.err.log -ErrorAction SilentlyContinue; exit 1 }"
         python -m pytest -q Backend/test_api.py
         '''
       }
