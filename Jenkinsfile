@@ -59,21 +59,24 @@ pipeline {
     stage('SonarQube Analysis') {
       steps {
         withSonarQubeEnv('PranavMK') {
-          script {
-            // resolve installed scanner
-            def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-            echo "Resolved Sonar scanner: ${sonarScannerHome}"
-            echo "Sonar host URL: ${env.SONAR_HOST_URL}"
-            // Use the token provided by withSonarQubeEnv (SONAR_AUTH_TOKEN)
-            bat """
-            "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
-              -Dsonar.projectKey=nexus-inventory-system ^
-              -Dsonar.projectName=nexus-inventory-system ^
-              -Dsonar.host.url=%SONAR_HOST_URL% ^
-              -Dsonar.login=%SONAR_AUTH_TOKEN% ^
-              -Dsonar.sources=Backend,frontend-react/src ^
-              -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
-            """
+          withCredentials([string(credentialsId: env.SONAR_CRED, variable: 'SONAR_TOKEN')]) {
+            script {
+              // resolve installed scanner
+              def sonarScannerHome = tool name: 'Sonar-server', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+              echo "Resolved Sonar scanner: ${sonarScannerHome}"
+              echo "Sonar host URL: ${env.SONAR_HOST_URL}"
+              // Clear SONAR_AUTH_TOKEN injected by withSonarQubeEnv to avoid sonar.token vs sonar.login conflict
+              bat """
+              set SONAR_AUTH_TOKEN=
+              "${sonarScannerHome}\\bin\\sonar-scanner.bat" ^
+                -Dsonar.projectKey=nexus-inventory-system ^
+                -Dsonar.projectName=nexus-inventory-system ^
+                -Dsonar.host.url=%SONAR_HOST_URL% ^
+                -Dsonar.login=%SONAR_TOKEN% ^
+                -Dsonar.sources=Backend,frontend-react/src ^
+                -Dsonar.exclusions=**/node_modules/**,**/build/**,**/__pycache__/**,**/*.pyc
+              """
+            }
           }
         }
       }
