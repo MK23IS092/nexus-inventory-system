@@ -4,7 +4,7 @@ pipeline {
     REGISTRY = 'docker.io/pranavmk'
     DOCKER_CRED = 'dockerhub-pranavmk'
     SONAR_CRED = 'sonar'
-    RAILWAY_CRED = 'railway-token'
+    RAILWAY_CRED = 'RAILWAY_TOKEN'
     SONAR_HOST = 'http://localhost:9000'
     BACKEND_BASE_URL = 'https://nexus-inventory-system-production.up.railway.app'
     RAILWAY_TOKEN = '94c309cc-5a6e-46f1-8644-b4b07fca314a'
