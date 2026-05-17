@@ -76,6 +76,12 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
         onConfirm(rows);
     };
 
+    const getInputType = (attrType) => {
+        if (attrType === 'int' || attrType === 'decimal') return 'number';
+        if (attrType === 'datetime') return 'datetime-local';
+        return 'text';
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -149,7 +155,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
                                                     </select>
                                                 ) : (
                                                     <input
-                                                        type={attr.type === 'int' || attr.type === 'decimal' ? 'number' : attr.type === 'datetime' ? 'datetime-local' : 'text'}
+                                                        type={getInputType(attr.type)}
                                                         className="futuristic-input"
                                                         placeholder="Enter value"
                                                         disabled={!row.attributes.hasOwnProperty(attr.name)}

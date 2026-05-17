@@ -32,6 +32,18 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
         onConfirm(selectedTable, rows);
     };
 
+    const getInputType = (attrType) => {
+        if (attrType === 'int' || attrType === 'decimal') return 'number';
+        if (attrType === 'datetime') return 'datetime-local';
+        return 'text';
+    };
+
+    const getPlaceholder = (attr) => {
+        if (attr.isForeign) return `Select ${attr.references} ID`;
+        if (attr.isPrimary) return `Enter ${attr.name} (Required)`;
+        return `Enter ${attr.name}`;
+    };
+
     if (!isOpen) return null;
 
     const tableSchema = TABLES.find(t => t.name === selectedTable);
@@ -91,9 +103,9 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
                                                 </select>
                                             ) : (
                                                 <input
-                                                    type={attr.type === 'int' || attr.type === 'decimal' ? 'number' : attr.type === 'datetime' ? 'datetime-local' : 'text'}
+                                                    type={getInputType(attr.type)}
                                                     className="futuristic-input"
-                                                    placeholder={attr.isForeign ? `Select ${attr.references} ID` : attr.isPrimary ? `Enter ${attr.name} (Required)` : `Enter ${attr.name}`}
+                                                    placeholder={getPlaceholder(attr)}
                                                     step={attr.type === 'decimal' ? '0.01' : undefined}
                                                     onChange={(e) => handleInputChange(index, attr.name, e.target.value)}
                                                 />

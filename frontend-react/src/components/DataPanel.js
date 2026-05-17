@@ -12,31 +12,45 @@ const DataPanel = ({ refreshTrigger }) => {
     }, [refreshTrigger]);
 
     const fetchTables = async () => {
-        try {
-            const response = await fetch('http://localhost:5000/all-tables');
-            const data = await response.json();
-            setTables(Object.keys(data));
-            // If a table is already selected, refresh its data
-            if (selectedTable) {
-                fetchTableData(selectedTable);
-            }
-        } catch (error) {
-            console.error('Error fetching tables:', error);
+        const response = await fetch('http://localhost:5000/all-tables');
+        if (!response.ok) {
+            console.error(`Error fetching tables: ${response.status} ${response.statusText}`);
+            return;
+        }
+
+        const data = await response.json();
+        setTables(Object.keys(data));
+        // If a table is already selected, refresh its data
+        if (selectedTable) {
+            fetchTableData(selectedTable);
         }
     };
 
     const fetchTableData = async (tableName) => {
         setLoading(true);
-        try {
-            const response = await fetch(`http://localhost:5000/get-${tableName}`);
-            const data = await response.json();
-            setTableData(data);
-        } catch (error) {
-            console.error('Error fetching table data:', error);
-        } finally {
+        const response = await fetch(`http://localhost:5000/get-${tableName}`);
+        if (!response.ok) {
+            console.error(`Error fetching table data: ${response.status} ${response.statusText}`);
             setLoading(false);
+            return;
         }
+
+        const data = await response.json();
+        setTableData(data);
+        setLoading(false);
     };
+
+    const selectedTableMessage = selectedTable ? (
+        <div className="placeholder-text">
+            <h4>No Data Available</h4>
+            <p>No records found in {selectedTable}</p>
+        </div>
+    ) : (
+        <div className="placeholder-text">
+            <h4>Select a Table</h4>
+            <p>Choose a table from the dropdown to view its data</p>
+        </div>
+    );
 
     const handleTableChange = (e) => {
         const tableName = e.target.value;
@@ -108,17 +122,7 @@ const DataPanel = ({ refreshTrigger }) => {
                         </table>
                     ) : (
                         <div className="placeholder-content">
-                            {selectedTable ? (
-                                <div className="placeholder-text">
-                                    <h4>No Data Available</h4>
-                                    <p>No records found in {selectedTable}</p>
-                                </div>
-                            ) : (
-                                <div className="placeholder-text">
-                                    <h4>Select a Table</h4>
-                                    <p>Choose a table from the dropdown to view its data</p>
-                                </div>
-                            )}
+                            {selectedTableMessage}
                         </div>
                     )}
                 </div>
