@@ -8,6 +8,7 @@ import AddItemModal from './components/modals/AddItemModal';
 import ModifyItemModal from './components/modals/ModifyItemModal';
 import DeleteItemModal from './components/modals/DeleteItemModal';
 import Notification from './components/Notification';
+import { API_BASE_URL } from './apiConfig';
 
 function App() {
   const [activeModal, setActiveModal] = useState(null);
@@ -31,7 +32,7 @@ function App() {
 
     for (const row of rows) {
       try {
-        const response = await fetch(`http://localhost:5000/add-${table}`, {
+        const response = await fetch(`${API_BASE_URL}/add-${table}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(row)
@@ -71,7 +72,7 @@ function App() {
       }
 
       try {
-        const response = await fetch('http://localhost:5000/update-row', {
+        const response = await fetch(`${API_BASE_URL}/update-row`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -111,7 +112,7 @@ function App() {
 
     for (const id of ids) {
       try {
-        const response = await fetch(`http://localhost:5000/delete-${table}/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/delete-${table}/${id}`, {
           method: 'DELETE'
         });
 

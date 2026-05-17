@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { API_BASE_URL } from '../../apiConfig';
 
 const DataPanel = ({ refreshTrigger }) => {
     const [tables, setTables] = useState([]);
@@ -12,7 +13,7 @@ const DataPanel = ({ refreshTrigger }) => {
     }, [refreshTrigger]);
 
     const fetchTables = async () => {
-        const response = await fetch('http://localhost:5000/all-tables');
+        const response = await fetch(`${API_BASE_URL}/all-tables`);
         if (!response.ok) {
             console.error(`Error fetching tables: ${response.status} ${response.statusText}`);
             return;
@@ -28,7 +29,7 @@ const DataPanel = ({ refreshTrigger }) => {
 
     const fetchTableData = async (tableName) => {
         setLoading(true);
-        const response = await fetch(`http://localhost:5000/get-${tableName}`);
+        const response = await fetch(`${API_BASE_URL}/get-${tableName}`);
         if (!response.ok) {
             console.error(`Error fetching table data: ${response.status} ${response.statusText}`);
             setLoading(false);
