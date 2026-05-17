@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -8,11 +8,36 @@ const DataPanel = ({ refreshTrigger }) => {
     const [tableData, setTableData] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        const fetchTables = async () => {
+    const log = useCallback((...args) => {
+        if (typeof console !== 'undefined') console.debug('[DataPanel]', ...args);
+    }, []);
+
+    
+
+    const fetchTableData = useCallback(async (tableName) => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/get-${tableName}`);
+            if (!response.ok) {
+                log('Error fetching table data:', response.status, response.statusText);
+                setLoading(false);
+                return;
+            }
+
+            const data = await response.json();
+            setTableData(data);
+        } catch (err) {
+            log('Exception while fetching table data:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [log]);
+
+    const fetchTables = useCallback(async () => {
+        try {
             const response = await fetch(`${API_BASE_URL}/all-tables`);
             if (!response.ok) {
-                console.error(`Error fetching tables: ${response.status} ${response.statusText}`);
+                log('Error fetching tables:', response.status, response.statusText);
                 return;
             }
 
@@ -22,36 +47,31 @@ const DataPanel = ({ refreshTrigger }) => {
             if (selectedTable) {
                 fetchTableData(selectedTable);
             }
-        };
-
-        fetchTables();
-    }, [refreshTrigger, selectedTable]);
-
-    const fetchTableData = async (tableName) => {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/get-${tableName}`);
-        if (!response.ok) {
-            console.error(`Error fetching table data: ${response.status} ${response.statusText}`);
-            setLoading(false);
-            return;
+        } catch (err) {
+            log('Exception while fetching tables:', err);
         }
+    }, [selectedTable, log, fetchTableData]);
 
-        const data = await response.json();
-        setTableData(data);
-        setLoading(false);
-    };
+    useEffect(() => {
+        fetchTables();
+    }, [fetchTables, refreshTrigger]);
 
-    const selectedTableMessage = selectedTable ? (
+
+    const renderPlaceholder = useCallback(() => (
         <div className="placeholder-text">
-            <h4>No Data Available</h4>
-            <p>No records found in {selectedTable}</p>
+            {selectedTable ? (
+                <>
+                    <h4>No Data Available</h4>
+                    <p>No records found in {selectedTable}</p>
+                </>
+            ) : (
+                <>
+                    <h4>Select a Table</h4>
+                    <p>Choose a table from the dropdown to view its data</p>
+                </>
+            )}
         </div>
-    ) : (
-        <div className="placeholder-text">
-            <h4>Select a Table</h4>
-            <p>Choose a table from the dropdown to view its data</p>
-        </div>
-    );
+    ), [selectedTable]);
 
     const handleTableChange = (e) => {
         const tableName = e.target.value;
@@ -69,12 +89,16 @@ const DataPanel = ({ refreshTrigger }) => {
         const idKey = keys.find(k => k === 'id' || k.endsWith('_id'));
         if (idKey && row[idKey] !== undefined) return `${idKey}-${row[idKey]}`;
         try {
-            return JSON.stringify(row);
+            // Use a lightweight stable key if possible
+            const firstKey = keys[0];
+            return firstKey && row[firstKey] !== undefined ? `${firstKey}-${row[firstKey]}` : JSON.stringify(row);
         } catch (error) {
-            console.error('Error generating row key:', error);
+            log('Error generating row key:', error);
             return `row-${index}`;
         }
     };
+
+    const headers = useMemo(() => (tableData[0] ? Object.keys(tableData[0]) : []), [tableData]);
 
     const tableContent = (() => {
         if (loading) {
@@ -90,7 +114,7 @@ const DataPanel = ({ refreshTrigger }) => {
                 <table className="data-table">
                     <thead>
                         <tr>
-                            {Object.keys(tableData[0]).map(key => (
+                            {headers.map(key => (
                                 <th key={key}>{key.toUpperCase()}</th>
                             ))}
                         </tr>
@@ -100,8 +124,8 @@ const DataPanel = ({ refreshTrigger }) => {
                             const rowKey = getRowKey(row, index);
                             return (
                                 <tr key={rowKey}>
-                                    {Object.values(row).map((val, i) => (
-                                        <td key={`${rowKey}-${i}`}>{val}</td>
+                                    {headers.map((key, i) => (
+                                        <td key={`${rowKey}-${i}`}>{row[key]}</td>
                                     ))}
                                 </tr>
                             );
@@ -113,7 +137,7 @@ const DataPanel = ({ refreshTrigger }) => {
 
         return (
             <div className="placeholder-content">
-                {selectedTableMessage}
+                {renderPlaceholder()}
             </div>
         );
     })();

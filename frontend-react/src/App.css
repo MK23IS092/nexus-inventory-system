@@ -453,17 +453,17 @@ body {
         padding: 5rem 1rem 1rem;
     }
     
-    .title {
+    .container .title {
         font-size: 2rem;
         letter-spacing: 2px;
     }
     
-    .controls {
+    .container .controls {
         flex-direction: column;
         align-items: center;
     }
     
-    .btn {
+    .container .btn {
         width: 100%;
         max-width: 280px;
     }
@@ -473,7 +473,7 @@ body {
         gap: 1rem;
     }
     
-    .status-item {
+    .status-bar .status-item {
         font-size: 0.7rem;
     }
     
@@ -482,26 +482,26 @@ body {
         left: 1rem;
     }
     
-    .data-table {
+    .table-wrapper .data-table {
         font-size: 0.75rem;
     }
     
-    .data-table th,
-    .data-table td {
+    .table-wrapper .data-table th,
+    .table-wrapper .data-table td {
         padding: 1rem 0.5rem;
     }
 }
 
 @media (max-width: 480px) {
-    .title {
+    .container .title {
         font-size: 1.5rem;
     }
     
-    .panel-header {
+    .container .panel-header {
         padding: 1rem;
     }
     
-    .controls {
+    .container .controls {
         padding: 1.5rem 1rem;
     }
 }
