@@ -70,10 +70,53 @@ const DataPanel = ({ refreshTrigger }) => {
         if (idKey && row[idKey] !== undefined) return `${idKey}-${row[idKey]}`;
         try {
             return JSON.stringify(row);
-        } catch (e) {
+        } catch (error) {
+            console.error('Error generating row key:', error);
             return `row-${index}`;
         }
     };
+
+    const tableContent = (() => {
+        if (loading) {
+            return (
+                <div className="placeholder-content">
+                    <div className="loading-spinner"></div>
+                </div>
+            );
+        }
+
+        if (selectedTable && tableData.length > 0) {
+            return (
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            {Object.keys(tableData[0]).map(key => (
+                                <th key={key}>{key.toUpperCase()}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tableData.map((row, index) => {
+                            const rowKey = getRowKey(row, index);
+                            return (
+                                <tr key={rowKey}>
+                                    {Object.values(row).map((val, i) => (
+                                        <td key={`${rowKey}-${i}`}>{val}</td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            );
+        }
+
+        return (
+            <div className="placeholder-content">
+                {selectedTableMessage}
+            </div>
+        );
+    })();
 
     return (
         <div className="data-panel">
@@ -95,37 +138,7 @@ const DataPanel = ({ refreshTrigger }) => {
             </div>
             <div className="table-wrapper">
                 <div id="table-container" className="table-container">
-                        {loading ? (
-                        <div className="placeholder-content">
-                            <div className="loading-spinner"></div>
-                        </div>
-                    ) : selectedTable && tableData.length > 0 ? (
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    {Object.keys(tableData[0]).map(key => (
-                                        <th key={key}>{key.toUpperCase()}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {tableData.map((row, index) => {
-                                    const rowKey = getRowKey(row, index);
-                                    return (
-                                        <tr key={rowKey}>
-                                            {Object.values(row).map((val, i) => (
-                                                <td key={`${rowKey}-${i}`}>{val}</td>
-                                            ))}
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="placeholder-content">
-                            {selectedTableMessage}
-                        </div>
-                    )}
+                    {tableContent}
                 </div>
             </div>
         </div>
