@@ -90,3 +90,7 @@ If you do not have the MongoDB service running as a Windows Service, you can run
 - `MONGO_URI`: your hosted MongoDB connection string.
 - `SECRET_KEY`: a strong random secret for Flask.
 - `PORT`: Railway sets this automatically, and the root `Dockerfile` already binds to it.
+
+### Vercel environment variables
+
+- `REACT_APP_API_BASE_URL`: `https://nexus-inventory-system-production.up.railway.app`
