@@ -9,6 +9,8 @@
       }
     }
   ],
+  "buildCommand": "cd frontend-react && npm run build",
+  "outputDirectory": "frontend-react/build",
   "routes": [
     {
       "src": "/(.*)",

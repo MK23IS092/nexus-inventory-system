@@ -1,14 +1,14 @@
 pipeline {
   agent any
   environment {
-    REGISTRY = 'docker.io/yourorg' // replace with your registry
-    DOCKER_CRED = 'docker-registry-creds' // Jenkins credential id (username/password)
-    SONAR_CRED = 'sonar-token' // Jenkins secret text credential id
+    REGISTRY = 'docker.io/PranavMK'
+    DOCKER_CRED = 'docker-registry-creds'
+    SONAR_CRED = 'sonar'
     SONAR_HOST = 'http://localhost:9000'
-    VERCEL_CRED = 'vercel-token' // optional
-    HF_CRED = 'hf-token' // optional
     BACKEND_IMAGE = "${REGISTRY}/nexus-backend:${env.GIT_COMMIT}"
     FRONTEND_IMAGE = "${REGISTRY}/nexus-frontend:${env.GIT_COMMIT}"
+    BACKEND_IMAGE_LATEST = "${REGISTRY}/nexus-backend:latest"
+    FRONTEND_IMAGE_LATEST = "${REGISTRY}/nexus-frontend:latest"
   }
   stages {
     stage('Checkout') {
@@ -64,6 +64,8 @@ pipeline {
       steps {
         sh "docker build -t ${BACKEND_IMAGE} -f Backend/Dockerfile Backend"
         sh "docker build -t ${FRONTEND_IMAGE} -f frontend-react/Dockerfile frontend-react"
+        sh "docker tag ${BACKEND_IMAGE} ${BACKEND_IMAGE_LATEST}"
+        sh "docker tag ${FRONTEND_IMAGE} ${FRONTEND_IMAGE_LATEST}"
       }
     }
 
@@ -73,6 +75,8 @@ pipeline {
           sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
           sh "docker push ${BACKEND_IMAGE}"
           sh "docker push ${FRONTEND_IMAGE}"
+          sh "docker push ${BACKEND_IMAGE_LATEST}"
+          sh "docker push ${FRONTEND_IMAGE_LATEST}"
         }
       }
     }
