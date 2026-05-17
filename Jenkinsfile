@@ -13,7 +13,7 @@ pipeline {
     VERCEL_CRED = 'vercel-token'
     VERCEL_PROJECT_ID = 'prj_TE3hanu3sHZ2kHUzCp3T7tUfCyAb'
     VERCEL_ORG_ID = 'team_GpO5D543HdVwuCLjif4rqt4W'
-    MONGO_URI = 'mongodb://127.0.0.1:27017/quickCommerceDB'
+    MONGO_URI = 'mongodb+srv://PranavMK:Pmk190705*@quickcommercedb.dejiyem.mongodb.net/quickCommerceDB?appName=quickCommerceDB'
   }
   stages {
     stage('Checkout') {
