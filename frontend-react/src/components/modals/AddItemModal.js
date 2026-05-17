@@ -15,7 +15,7 @@ const AddItemModal = ({ isOpen, onClose, onConfirm }) => {
             setRowCount(1);
             setRows([]);
         }
-    }, [isOpen]);
+    }, [isOpen, rowCount]);
 
     useEffect(() => {
         setRows(new Array(Number.parseInt(rowCount) || 1).fill({}));

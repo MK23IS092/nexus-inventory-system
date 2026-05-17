@@ -15,7 +15,7 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
             setRowCount(1);
             setIds([]);
         }
-    }, [isOpen]);
+    }, [isOpen, rowCount]);
 
     useEffect(() => {
         setIds(prev => {

@@ -9,23 +9,23 @@ const DataPanel = ({ refreshTrigger }) => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        const fetchTables = async () => {
+            const response = await fetch(`${API_BASE_URL}/all-tables`);
+            if (!response.ok) {
+                console.error(`Error fetching tables: ${response.status} ${response.statusText}`);
+                return;
+            }
+
+            const data = await response.json();
+            setTables(Object.keys(data));
+            // If a table is already selected, refresh its data
+            if (selectedTable) {
+                fetchTableData(selectedTable);
+            }
+        };
+
         fetchTables();
-    }, [refreshTrigger]);
-
-    const fetchTables = async () => {
-        const response = await fetch(`${API_BASE_URL}/all-tables`);
-        if (!response.ok) {
-            console.error(`Error fetching tables: ${response.status} ${response.statusText}`);
-            return;
-        }
-
-        const data = await response.json();
-        setTables(Object.keys(data));
-        // If a table is already selected, refresh its data
-        if (selectedTable) {
-            fetchTableData(selectedTable);
-        }
-    };
+    }, [refreshTrigger, selectedTable]);
 
     const fetchTableData = async (tableName) => {
         setLoading(true);

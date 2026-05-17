@@ -13,7 +13,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
             setRowCount(1);
             setRows([]);
         }
-    }, [isOpen]);
+    }, [isOpen, rowCount]);
 
     useEffect(() => {
         // Adjust rows array size while preserving existing data
