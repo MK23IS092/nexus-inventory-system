@@ -1,4 +1,4 @@
-# Nexus Inventory Management System - Devops Project.
+# Nexus Inventory Management System: Devops Project.
 
 A futuristic inventory management system with a React frontend and Python Flask backend, using MongoDB for data storage.
 
