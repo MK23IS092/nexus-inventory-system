@@ -2,78 +2,84 @@ import React, { useState, useEffect } from 'react';
 import { TABLES } from '../../constants';
 import PropTypes from 'prop-types';
 
+const emptyRow = () => ({ table: '', id: '', attributes: {} });
+
 const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
     const [rowCount, setRowCount] = useState(1);
-    const [rows, setRows] = useState([]);
+    const [rows, setRows] = useState([emptyRow()]);
 
     useEffect(() => {
         if (isOpen) {
-            setRows(new Array(Number.parseInt(rowCount) || 1).fill({ table: '', id: '', attributes: {} }));
+            const count = Number.parseInt(rowCount, 10) || 1;
+            setRows(Array.from({ length: count }, emptyRow));
         } else {
             setRowCount(1);
-            setRows([]);
+            setRows([emptyRow()]);
         }
-    }, [isOpen, rowCount]);
+    }, [isOpen]);
 
     useEffect(() => {
-        // Adjust rows array size while preserving existing data
-        setRows(prev => {
-            const newCount = Number.parseInt(rowCount) || 1;
-            const newRows = [...prev];
-            if (newCount > prev.length) {
-                for (let i = prev.length; i < newCount; i++) {
-                    newRows.push({ table: '', id: '', attributes: {} });
-                }
-            } else {
-                newRows.length = newCount;
+        const count = Number.parseInt(rowCount, 10) || 1;
+        setRows((prev) => {
+            if (count === prev.length) return prev;
+            if (count > prev.length) {
+                return [...prev, ...Array.from({ length: count - prev.length }, emptyRow)];
             }
-            return newRows;
+            return prev.slice(0, count);
         });
     }, [rowCount]);
 
     const handleRowChange = (index, field, value) => {
-        const newRows = [...rows];
-        newRows[index] = { ...newRows[index], [field]: value };
-        // Reset attributes if table changes
-        if (field === 'table') {
-            newRows[index].attributes = {};
-        }
-        setRows(newRows);
-    };
-
-    const handleAttributeToggle = (rowIndex, attrName, checked) => {
-        const newRows = [...rows];
-        const currentAttributes = { ...newRows[rowIndex].attributes };
-        if (checked) {
-            currentAttributes[attrName] = ''; // Initialize with empty string
-        } else {
-            delete currentAttributes[attrName];
-        }
-        newRows[rowIndex].attributes = currentAttributes;
-        setRows(newRows);
+        setRows((prev) => {
+            const newRows = [...prev];
+            newRows[index] = { ...newRows[index], [field]: value };
+            if (field === 'table') {
+                newRows[index].attributes = {};
+            }
+            return newRows;
+        });
     };
 
     const handleAttributeValueChange = (rowIndex, attrName, value) => {
-        const newRows = [...rows];
-        newRows[rowIndex].attributes = {
-            ...newRows[rowIndex].attributes,
-            [attrName]: value
-        };
-        setRows(newRows);
+        setRows((prev) => {
+            const newRows = [...prev];
+            const attributes = { ...newRows[rowIndex].attributes };
+            if (value === '' || value === null || value === undefined) {
+                delete attributes[attrName];
+            } else {
+                attributes[attrName] = value;
+            }
+            newRows[rowIndex] = { ...newRows[rowIndex], attributes };
+            return newRows;
+        });
     };
 
     const handleRemoveRow = (index) => {
-        const newRows = rows.filter((_, i) => i !== index);
-        setRows(newRows);
-        setRowCount(newRows.length);
+        setRows((prev) => {
+            const newRows = prev.filter((_, i) => i !== index);
+            setRowCount(Math.max(1, newRows.length));
+            return newRows.length ? newRows : [emptyRow()];
+        });
     };
 
     const handleConfirm = () => {
-        // Transform rows to the format expected by backend
-        // Backend expects: { table_name, key, attribute_list }
-        // But the parent component will handle the API call loop.
-        // We just pass the raw data.
-        onConfirm(rows);
+        const payload = rows
+            .map((row) => ({
+                table: row.table?.trim(),
+                id: String(row.id ?? '').trim(),
+                attributes: Object.fromEntries(
+                    Object.entries(row.attributes || {}).filter(
+                        ([, value]) => value !== '' && value !== null && value !== undefined
+                    )
+                ),
+            }))
+            .filter((row) => row.table && row.id && Object.keys(row.attributes).length > 0);
+
+        if (payload.length === 0) {
+            return;
+        }
+
+        onConfirm(payload);
     };
 
     const getInputType = (attrType) => {
@@ -136,20 +142,13 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
                                         .map(attr => (
                                             <div key={attr.name} className="attribute-field">
                                                 <label className="attribute-label">{attr.name}</label>
-                                                <input
-                                                    type="checkbox"
-                                                    className="modify-checkbox"
-                                                    checked={row.attributes.hasOwnProperty(attr.name)}
-                                                    onChange={(e) => handleAttributeToggle(index, attr.name, e.target.checked)}
-                                                />
                                                 {attr.type === 'boolean' ? (
                                                     <select
                                                         className="futuristic-select"
-                                                        disabled={!row.attributes.hasOwnProperty(attr.name)}
-                                                        value={row.attributes[attr.name] || ''}
+                                                        value={row.attributes[attr.name] ?? ''}
                                                         onChange={(e) => handleAttributeValueChange(index, attr.name, e.target.value)}
                                                     >
-                                                        <option value="">Select...</option>
+                                                        <option value="">Leave unchanged</option>
                                                         <option value="true">True</option>
                                                         <option value="false">False</option>
                                                     </select>
@@ -157,9 +156,8 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
                                                     <input
                                                         type={getInputType(attr.type)}
                                                         className="futuristic-input"
-                                                        placeholder="Enter value"
-                                                        disabled={!row.attributes.hasOwnProperty(attr.name)}
-                                                        value={row.attributes[attr.name] || ''}
+                                                        placeholder={`New ${attr.name}`}
+                                                        value={row.attributes[attr.name] ?? ''}
                                                         onChange={(e) => handleAttributeValueChange(index, attr.name, e.target.value)}
                                                     />
                                                 )}

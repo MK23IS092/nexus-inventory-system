@@ -10,7 +10,12 @@ from config import MONGO_URI, SECRET_KEY
 
 app = Flask(__name__)
 app.config.setdefault("SECRET_KEY", SECRET_KEY)
-CORS(app)
+CORS(
+    app,
+    resources={r"/*": {"origins": "*"}},
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 # MongoDB connection
 client = MongoClient(MONGO_URI)
@@ -43,6 +48,92 @@ def get_all_tables():
     return jsonify(all_data)
 
 # -------------------- Utility --------------------
+KEY_FIELD_MAP = {
+    "Products": "product_id",
+    "DarkStores": "store_id",
+    "Users": "user_id",
+    "Inventory": "inventory_id",
+    "StockMovements": "movement_id",
+    "Orders": "order_id",
+    "OrderItems": "order_item_id",
+}
+
+
+def parse_key(key):
+    if key is None:
+        return None
+    if isinstance(key, bool):
+        return key
+    if isinstance(key, int):
+        return key
+    if isinstance(key, float) and key.is_integer():
+        return int(key)
+    text = str(key).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return text
+
+
+def key_candidates(key):
+    parsed = parse_key(key)
+    if parsed is None:
+        return []
+    candidates = [parsed]
+    if isinstance(parsed, int):
+        candidates.append(str(parsed))
+    elif isinstance(parsed, str) and parsed.isdigit():
+        candidates.append(int(parsed))
+    return candidates
+
+
+def key_query(key_field, key):
+    candidates = key_candidates(key)
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return {key_field: candidates[0]}
+    return {key_field: {"$in": candidates}}
+
+
+def coerce_field_value(field_name, value):
+    if value is None or value == "":
+        return value
+    if isinstance(value, bool):
+        return value
+    if field_name.endswith("_id") or field_name in (
+        "quantity",
+        "quantity_available",
+        "quantity_reserved",
+        "reorder_threshold",
+        "customer_id",
+    ):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            pass
+    if field_name.startswith("is_"):
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in ("true", "1", "yes"):
+                return True
+            if lowered in ("false", "0", "no"):
+                return False
+        return bool(value)
+    if field_name in ("unit_price", "discount", "price"):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            pass
+    return value
+
+
+def coerce_attribute_list(attribute_list):
+    return {field: coerce_field_value(field, value) for field, value in attribute_list.items()}
+
+
 def create_routes(name, key_field):
     # Add document
     @app.route(f'/add-{name}', methods=['POST'], endpoint=f'add_{name}')
@@ -63,11 +154,11 @@ def create_routes(name, key_field):
     @app.route(f'/update-{name}/<key_value>', methods=['PUT'], endpoint=f'update_{name}')
     def update(key_value):
         data = request.get_json() or {}
-        try:
-            parsed_key = int(key_value)
-        except ValueError:
-            parsed_key = key_value
-        result = db[name].update_one({key_field: parsed_key}, {'$set': data})
+        query = key_query(key_field, key_value)
+        if not query:
+            return jsonify({"error": f"Invalid key for {name}"}), 400
+        data = coerce_attribute_list(data)
+        result = db[name].update_one(query, {'$set': data})
         if result.matched_count == 0:
             return jsonify({"error": f"{name} not found"}), 404
         return jsonify({"message": f"{name} updated successfully!"})
@@ -76,11 +167,10 @@ def create_routes(name, key_field):
     # Delete by key
     @app.route(f'/delete-{name}/<key_value>', methods=['DELETE'], endpoint=f'delete_{name}')
     def delete(key_value):
-        try:
-            parsed_key = int(key_value)
-        except ValueError:
-            parsed_key = key_value
-        result = db[name].delete_one({key_field: parsed_key})
+        query = key_query(key_field, key_value)
+        if not query:
+            return jsonify({"error": f"Invalid key for {name}"}), 400
+        result = db[name].delete_one(query)
         if result.deleted_count == 0:
             return jsonify({"error": f"{name} not found"}), 404
         return jsonify({"message": f"{name} deleted successfully!"})
@@ -106,34 +196,20 @@ def update_row():
         except Exception:
             return jsonify({"error": "Invalid attribute_list format"}), 400
 
-    # Identify key field for the specified table
-    key_field_map = {
-        "Products": "product_id",
-        "DarkStores": "store_id",
-        "Users": "user_id",
-        "Inventory": "inventory_id",
-        "StockMovements": "movement_id",
-        "Orders": "order_id",
-        "OrderItems": "order_item_id"
-    }
-
-    key_field = key_field_map.get(table_name)
+    key_field = KEY_FIELD_MAP.get(table_name)
     if not key_field:
         return jsonify({"error": f"Invalid table name: {table_name}"}), 404
 
-    # Convert key to int if needed
-    try:
-        key = int(key)
-    except ValueError:
-        pass
+    query = key_query(key_field, key)
+    if not query:
+        return jsonify({"error": "Invalid key value"}), 400
 
-    result = db[table_name].update_one(
-        {key_field: key},
-        {"$set": attribute_list}
-    )
+    attribute_list = coerce_attribute_list(attribute_list)
+
+    result = db[table_name].update_one(query, {"$set": attribute_list})
 
     if result.matched_count == 0:
-        return jsonify({"error": f"No record found in {table_name} with {key_field} = {key}"}), 404
+        return jsonify({"error": f"No record found in {table_name} with {key_field} = {parse_key(key)}"}), 404
 
     return jsonify({
         "message": f"{table_name} updated successfully.",

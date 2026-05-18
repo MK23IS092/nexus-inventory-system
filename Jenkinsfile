@@ -45,6 +45,7 @@ pipeline {
       steps {
         bat '''
         cd frontend-react
+        set REACT_APP_API_BASE_URL=%BACKEND_BASE_URL%
         npm ci --legacy-peer-deps
         npm test -- --watchAll=false --passWithNoTests
         npm run build
@@ -215,6 +216,7 @@ pipeline {
           withCredentials([string(credentialsId: env.VERCEL_CRED, variable: 'VERCEL_TOKEN')]) {
             bat '''
             powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path .vercel | Out-Null; $json = '{\"projectId\":\"%VERCEL_PROJECT_ID%\",\"orgId\":\"%VERCEL_ORG_ID%\"}'; Set-Content -Path .vercel\\project.json -Value $json -Encoding ASCII"
+            set REACT_APP_API_BASE_URL=%BACKEND_BASE_URL%
             npx --yes vercel deploy --prod --yes --token %VERCEL_TOKEN%
             '''
           }

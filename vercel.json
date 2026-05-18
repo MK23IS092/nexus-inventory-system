@@ -6,6 +6,9 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build"
+      },
+      "env": {
+        "REACT_APP_API_BASE_URL": "https://nexus-inventory-system-production.up.railway.app"
       }
     }
   ],

@@ -9,6 +9,11 @@ import ModifyItemModal from './components/modals/ModifyItemModal';
 import DeleteItemModal from './components/modals/DeleteItemModal';
 import Notification from './components/Notification';
 import { API_BASE_URL } from './apiConfig';
+import {
+  coerceRowForTable,
+  coerceAttributesForTable,
+  parseApiError,
+} from './apiHelpers';
 
 function App() {
   const [activeModal, setActiveModal] = useState(null);
@@ -32,15 +37,18 @@ function App() {
 
     for (const row of rows) {
       try {
+        const payload = coerceRowForTable(table, row);
         const response = await fetch(`${API_BASE_URL}/add-${table}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(row)
+          body: JSON.stringify(payload)
         });
 
         if (response.ok) {
           successCount++;
         } else {
+          const message = await parseApiError(response);
+          console.error('Error adding item:', message);
           errorCount++;
         }
       } catch (error) {
@@ -66,7 +74,11 @@ function App() {
     showNotification(`Attempting to modify ${rows.length} item(s)...`, 'info');
 
     for (const row of rows) {
-      if (!row.table || !row.id || Object.keys(row.attributes).length === 0) {
+      const table = row.table?.trim();
+      const id = String(row.id ?? '').trim();
+      const attributes = coerceAttributesForTable(table, row.attributes);
+
+      if (!table || !id || Object.keys(attributes).length === 0) {
         failedCount++;
         continue;
       }
@@ -76,15 +88,17 @@ function App() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            table_name: row.table,
-            key: row.id,
-            attribute_list: row.attributes
+            table_name: table,
+            key: id,
+            attribute_list: attributes
           })
         });
 
         if (response.ok) {
           successCount++;
         } else {
+          const message = await parseApiError(response);
+          console.error('Error modifying item:', message);
           failedCount++;
         }
       } catch (error) {
@@ -108,19 +122,23 @@ function App() {
     let errorCount = 0;
     let notFoundCount = 0;
 
-    showNotification(`Attempting to delete ${ids.length} item(s) from ${table}...`, 'info');
+    const trimmedIds = ids.map((id) => String(id).trim()).filter(Boolean);
+    showNotification(`Attempting to delete ${trimmedIds.length} item(s) from ${table}...`, 'info');
 
-    for (const id of ids) {
+    for (const id of trimmedIds) {
       try {
-        const response = await fetch(`${API_BASE_URL}/delete-${table}/${id}`, {
-          method: 'DELETE'
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/delete-${table}/${encodeURIComponent(id)}`,
+          { method: 'DELETE' }
+        );
 
         if (response.ok) {
           successCount++;
         } else if (response.status === 404) {
           notFoundCount++;
         } else {
+          const message = await parseApiError(response);
+          console.error('Error deleting item:', message);
           errorCount++;
         }
       } catch (error) {
