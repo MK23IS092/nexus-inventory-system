@@ -9,16 +9,14 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
     const [rows, setRows] = useState([emptyRow()]);
 
     useEffect(() => {
-        if (isOpen) {
-            const count = Number.parseInt(rowCount, 10) || 1;
-            setRows(Array.from({ length: count }, emptyRow));
-        } else {
+        if (!isOpen) {
             setRowCount(1);
             setRows([emptyRow()]);
         }
     }, [isOpen]);
 
     useEffect(() => {
+        if (!isOpen) return;
         const count = Number.parseInt(rowCount, 10) || 1;
         setRows((prev) => {
             if (count === prev.length) return prev;
@@ -27,7 +25,7 @@ const ModifyItemModal = ({ isOpen, onClose, onConfirm }) => {
             }
             return prev.slice(0, count);
         });
-    }, [rowCount]);
+    }, [isOpen, rowCount]);
 
     const handleRowChange = (index, field, value) => {
         setRows((prev) => {
