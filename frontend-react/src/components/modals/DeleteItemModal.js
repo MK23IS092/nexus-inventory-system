@@ -40,7 +40,7 @@ const DeleteItemModal = ({ isOpen, onClose, onConfirm }) => {
 
     const handleConfirm = () => {
         if (!selectedTable) return;
-        onConfirm(selectedTable, ids.filter(id => id.trim() !== ''));
+        onConfirm(selectedTable, ids.map((id) => id.trim()).filter(Boolean));
     };
 
     if (!isOpen) return null;

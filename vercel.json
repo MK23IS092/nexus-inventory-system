@@ -1,20 +1,15 @@
 {
-  "version": 2,
-  "builds": [
+  "buildCommand": "cd frontend-react && npm ci && npm run build",
+  "outputDirectory": "frontend-react/build",
+  "installCommand": "cd frontend-react && npm ci",
+  "framework": null,
+  "rewrites": [
     {
-      "src": "frontend-react/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
-  "buildCommand": "cd frontend-react && npm run build",
-  "outputDirectory": "frontend-react/build",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "env": {
+    "REACT_APP_API_BASE_URL": "https://nexus-inventory-system-production.up.railway.app"
+  }
 }
