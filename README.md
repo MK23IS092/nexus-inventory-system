@@ -94,3 +94,8 @@ If you do not have the MongoDB service running as a Windows Service, you can run
 ### Vercel environment variables
 
 - `REACT_APP_API_BASE_URL`: `https://nexus-inventory-system-production.up.railway.app`
+
+### Note
+This is the master branch. This is issues in sonarqube. The security-fixes branch, has the code with all issues fixed and passed.
+That being said, the master branch is 30 commits ahead, as we wanted to deploy first, but now we have CI/CD pipeline set up, hence we can implement the same fixes when needed or merge when needed.
+We havent fixed issues yet on master branch, as they arent risks.
