@@ -98,7 +98,33 @@ const DataPanel = ({ refreshTrigger }) => {
         }
     };
 
-    const headers = useMemo(() => (tableData[0] ? Object.keys(tableData[0]) : []), [tableData]);
+    const headers = useMemo(() => {
+        if (!tableData.length) return [];
+        const keySet = new Set();
+        tableData.forEach((row) => {
+            if (row && typeof row === 'object') {
+                Object.keys(row).forEach((key) => keySet.add(key));
+            }
+        });
+        const keys = Array.from(keySet);
+        const idKey = keys.find((k) => k === 'id' || k.endsWith('_id'));
+        if (idKey) {
+            return [idKey, ...keys.filter((k) => k !== idKey).sort()];
+        }
+        return keys.sort();
+    }, [tableData]);
+
+    const formatCellValue = (value) => {
+        if (value === null || value === undefined || value === '') return '—';
+        if (typeof value === 'object') {
+            try {
+                return JSON.stringify(value);
+            } catch {
+                return String(value);
+            }
+        }
+        return String(value);
+    };
 
     const tableContent = (() => {
         if (loading) {
@@ -125,7 +151,7 @@ const DataPanel = ({ refreshTrigger }) => {
                             return (
                                 <tr key={rowKey}>
                                     {headers.map((key, i) => (
-                                        <td key={`${rowKey}-${i}`}>{row[key]}</td>
+                                        <td key={`${rowKey}-${i}`}>{formatCellValue(row[key])}</td>
                                     ))}
                                 </tr>
                             );
@@ -146,18 +172,25 @@ const DataPanel = ({ refreshTrigger }) => {
         <div className="data-panel">
             <div className="panel-header">
                 <h3>DATA MATRIX</h3>
-                <div className="table-selector">
-                    <select
-                        id="tableSelect"
-                        className="futuristic-select"
-                        value={selectedTable}
-                        onChange={handleTableChange}
-                    >
-                        <option value="">Select Table...</option>
-                        {tables.map(table => (
-                            <option key={table} value={table}>{table}</option>
-                        ))}
-                    </select>
+                <div className="panel-header-actions">
+                    {selectedTable && !loading && (
+                        <span className="row-count">
+                            {tableData.length} row{tableData.length === 1 ? '' : 's'}
+                        </span>
+                    )}
+                    <div className="table-selector">
+                        <select
+                            id="tableSelect"
+                            className="futuristic-select"
+                            value={selectedTable}
+                            onChange={handleTableChange}
+                        >
+                            <option value="">Select Table...</option>
+                            {tables.map((table) => (
+                                <option key={table} value={table}>{table}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
             <div className="table-wrapper">

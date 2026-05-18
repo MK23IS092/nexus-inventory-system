@@ -175,8 +175,16 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     margin-bottom: 2rem;
-    overflow: hidden;
     box-shadow: var(--shadow);
+}
+
+.control-panel {
+    overflow: hidden;
+}
+
+.data-panel {
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-header {
@@ -293,8 +301,33 @@ body {
 }
 
 /* Table */
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.row-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--medium-gray);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
 .table-wrapper {
-    overflow-x: auto;
+    overflow: auto;
+    max-height: min(70vh, 800px);
+    flex: 1;
+}
+
+.table-container {
+    min-width: 100%;
+}
+
+.table-selector .futuristic-select {
+    min-width: 180px;
 }
 
 .data-table {
